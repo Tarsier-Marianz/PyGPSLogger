@@ -17,4 +17,6 @@ Raw data parsing from `GPS Receiver` uses standard data formatting [NMEA](http:/
 
 [pynmea](https://pypi.python.org/pypi/pynmea/0.6.0) - parsing NMEA data formatting
 
+[led icons](http://vitorfs.com/led-icons/) - system icons
+
 
