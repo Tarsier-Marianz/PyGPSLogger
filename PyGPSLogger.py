@@ -21,6 +21,8 @@ import sys
 import serial
 import datetime
 import parsenmea
+from pynmea import nmea
+
 from threading import Thread
 from PIL import ImageTk
 from goompy import GooMPy
@@ -73,6 +75,8 @@ class Application(Frame):
         self._parser = parsenmea.ParseNmea()
         self._storage = StorageDB('gps.sqlite')
         self._settings = Settings()
+        self._gpgga = nmea.GPGGA()
+        self._gprmc = nmea.GPRMC()
         
         pass
 
@@ -90,6 +94,9 @@ class Application(Frame):
         self.line_raw = IntVar()
         self.progress = IntVar()
         self.progress_maximum = IntVar()
+
+        self.lastLat = 0.0
+        self.lastLon = 0.0
 
         self.is_zoomIn = True
         
@@ -188,14 +195,36 @@ class Application(Frame):
             self.tree_parseDate.configure(yscrollcommand=verticalScroll.set)
             self.tree_parseDate.configure(xscrollcommand=horScroll.set)
 
-            self.tree_parseDate['columns'] = ('count', 'details')
+            self.tree_parseDate['columns'] = ('latitude', 'longhitude', 'altitude', 'distance', 'satellites', 'quality', 'speed','course', 'date')
             #self.tree_parseDate['show'] = 'headings'
-            self.tree_parseDate.heading("#0", text='Name', anchor='w')
-            #self.tree_parseDate.column("#0", anchor="w", width=40)
-            self.tree_parseDate.heading('count', text='Count')
-            self.tree_parseDate.column('count', stretch ='yes', anchor='center', width=14)
-            self.tree_parseDate.heading('details', text='Details')
-            self.tree_parseDate.column('details', anchor='center', width=20)
+            self.tree_parseDate.heading("#0", text='Timestamp', anchor='w')
+            self.tree_parseDate.column("#0", anchor="w", width=40)
+            self.tree_parseDate.heading('latitude', text='Latitude')
+            self.tree_parseDate.column('latitude', stretch ='yes', anchor='w', width=14)
+
+            self.tree_parseDate.heading('longhitude', text='Longhitude')
+            self.tree_parseDate.column('longhitude', anchor='w', width=20)
+
+            self.tree_parseDate.heading('altitude', text='Altitude')
+            self.tree_parseDate.column('altitude', anchor='w', width=20)
+
+            self.tree_parseDate.heading('distance', text='Distance')
+            self.tree_parseDate.column('distance', anchor='w', width=20)
+
+            self.tree_parseDate.heading('satellites', text='Satellites')
+            self.tree_parseDate.column('satellites', anchor='w', width=10)
+
+            self.tree_parseDate.heading('quality', text='Quality')
+            self.tree_parseDate.column('quality', anchor='w', width=20)
+
+            self.tree_parseDate.heading('speed', text='Speed')
+            self.tree_parseDate.column('speed', anchor='w', width=20)
+
+            self.tree_parseDate.heading('course', text='Course')
+            self.tree_parseDate.column('course', anchor='w', width=20)
+
+            self.tree_parseDate.heading('date', text='Date')
+            self.tree_parseDate.column('date', anchor='w', width=20)
 
             #self.init_workspaces()
             self.tree_parseDate.pack(expand=1, fill='both')
@@ -312,9 +341,12 @@ class Application(Frame):
             self.txt_rawData.insert(END, reading)
             self.txt_rawData.see("end")
             self.line_raw.set(i)
+            self.parse_data(reading)
             i +=1
     
     def read_data(self, filename):
+        if filename.strip() =='':
+            return
         self._parser.ParseGpsNmeaFile(filename)
         # If the gpsData is length zero the file was not in the
         # GPGGA, GPRMC pair format. Try the just GPRMC format
@@ -337,7 +369,20 @@ class Application(Frame):
                     self.txt_rawData.insert(END, line)
                     self.txt_rawData.see("end")
                     self.line_raw.set(i)
+                    self.parse_data(line)
                     i +=1
+
+    def parse_data(self, line): 
+        # Skip any sentence other than GPGGA
+        if line.startswith('$GPGGA'):
+            self._gpgga.parse(line)
+            #if self._parser.DoNotHaveFix(self._gpgga.latitude):
+            #    continue
+            [lat, lon] = self._parser.ConvertLatLonToDecimalDegrees(self._gpgga.latitude,self._gpgga.lat_direction,self._gpgga.longitude,self._gpgga.lon_direction)
+            distance = self._parser.HaversineDistance(lat,self.lastLat,lon,self.lastLon)
+            self.lastLat = lat
+            self.lastLon = lon
+            self.tree_parseDate.insert('', 'end', self._gpgga.timestamp, values= (lat, lon, self._gpgga.antenna_altitude, distance,self._gpgga.num_sats, self._gpgga.gps_qual))
 
     '''
     This region starts with control events
@@ -364,6 +409,9 @@ class Application(Frame):
             self.read_data(self.file_name)
             #self.thread = Thread(target=self.read_data, name = str(datetime.datetime.now()))
             #self.thread.start()
+        elif tag=='exit':
+            self.onExit()
+            pass
         else:
             print ((index,tag))
             pass
