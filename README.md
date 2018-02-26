@@ -4,7 +4,7 @@ A simple **GPS-Receiver Data Logger** created using [Python](https://www.python.
 Raw data parsing from `GPS Receiver` uses standard data formatting [NMEA](http://www.gpsinformation.org/dale/nmea.htm) which is supported by all GPS manufacturers.
 
 
-
+> Well explained **NMEA Sentences** documentation can be found  [here](http://aprs.gids.nl/nmea/) and [here](http://www.gpsinformation.org/dale/nmea.htm#stream).
 
 
 ## Screenshots
